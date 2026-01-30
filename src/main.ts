@@ -73,7 +73,7 @@ async function bootstrap() {
         await telegram.sendMessage(userId, "❌ 格式錯誤。使用範例：/remove_schedule 1");
         return;
       }
-      const id = parseInt(parts[1], 10);
+      const id = parseInt(parts[1]!, 10);
       if (isNaN(id)) {
         await telegram.sendMessage(userId, "❌ ID 必須是數字。");
         return;
@@ -99,7 +99,7 @@ async function bootstrap() {
       }
       const [name, cron, prompt] = parts;
       try {
-        const id = scheduler.addSchedule(userId, name, cron, prompt);
+        const id = scheduler.addSchedule(userId, name!, cron!, prompt!);
         await telegram.sendMessage(userId, `✅ 成功新增排程 #${id}：${name}`);
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
@@ -117,8 +117,16 @@ async function bootstrap() {
     }
 
     try {
-      // 1. 存入使用者訊息
-      memory.addMessage(userId, 'user', msg.content);
+      // 1. 存入使用者訊息 (長文自動摘要)
+      const userContentLength = msg.content.length;
+      let userSummary: string | undefined;
+
+      if (userContentLength > 800) {
+        console.log(`📝 [Memory] User input is long (${userContentLength} chars), generating summary...`);
+        userSummary = await gemini.summarize(msg.content);
+      }
+
+      memory.addMessage(userId, 'user', msg.content, userSummary);
 
       // 2. 準備 Context
       const historyContext = memory.getHistoryContext(userId);
@@ -129,6 +137,11 @@ System: 你是 Moltbot，一個具備強大工具執行能力的本地 AI 助理
 當使用者要求你搜尋網路、查看檔案或執行指令時，請善用你手邊的工具（如 google_search, read_file 等）。
 現在已經開啟了 YOLO 模式，你的所有工具調用都會被自動允許。
 請用繁體中文回應。
+
+【記憶管理】
+你只能看到最近 5 則對話的摘要或原文。如果你需要回想更早之前的資訊，請執行以下指令：
+node dist/tools/search_memory.js "關鍵字"
+這會從資料庫搜尋相關的歷史對話並顯示給你。
 
 Conversation History:
 ${historyContext}
@@ -141,9 +154,17 @@ AI Response:
 
       console.log(`🤖 [Gemini] Reply length: ${response.length}`);
 
-      // 5. 存入 AI 回應
+      // 5. 存入 AI 回應 (長文自動摘要)
       if (response && !response.startsWith('Error')) {
-        memory.addMessage(userId, 'model', response);
+        const responseLength = response.length;
+        let responseSummary: string | undefined;
+
+        if (responseLength > 800) {
+          console.log(`📝 [Memory] AI response is long (${responseLength} chars), generating summary...`);
+          responseSummary = await gemini.summarize(response);
+        }
+
+        memory.addMessage(userId, 'model', response, responseSummary);
       }
 
       // 6. 更新訊息 (取代 Thinking...)

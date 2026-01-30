@@ -19,7 +19,7 @@ export interface Schedule {
 
 export class MemoryManager {
   private db: Database.Database;
-  private readonly MAX_HISTORY = 20; // 讀取最近 20 則訊息作為 Context
+  private readonly MAX_HISTORY = 5; // 讀取最近 5 則訊息作為 Context
 
   constructor() {
     // 初始化資料庫，檔案存在專案根目錄
@@ -40,6 +40,7 @@ export class MemoryManager {
         user_id TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('user', 'model')),
         content TEXT NOT NULL,
+        summary TEXT,
         timestamp INTEGER NOT NULL
       )
     `);
@@ -47,6 +48,16 @@ export class MemoryManager {
 
     // 建立索引加速查詢
     this.db.prepare(`CREATE INDEX IF NOT EXISTS idx_user_timestamp ON messages(user_id, timestamp)`).run();
+
+    // 建立 FTS5 虛擬表格 (全文檢索)
+    this.db.prepare(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+        user_id,
+        role,
+        content,
+        timestamp
+      )
+    `).run();
 
     // 建立 schedules 表格
     const scheduleStmt = this.db.prepare(`
@@ -66,29 +77,38 @@ export class MemoryManager {
   /**
    * 新增訊息到資料庫
    */
-  addMessage(userId: string, role: 'user' | 'model', content: string): void {
+  addMessage(userId: string, role: 'user' | 'model', content: string, summary?: string): void {
+    const timestamp = Date.now();
     const stmt = this.db.prepare(`
-      INSERT INTO messages (user_id, role, content, timestamp)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO messages (user_id, role, content, summary, timestamp)
+      VALUES (?, ?, ?, ?, ?)
     `);
-    stmt.run(userId, role, content, Date.now());
+    const result = stmt.run(userId, role, content, summary || null, timestamp);
+
+    // 同步到 FTS5 表格
+    const ftsStmt = this.db.prepare(`
+      INSERT INTO messages_fts (rowid, user_id, role, content, timestamp)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    ftsStmt.run(result.lastInsertRowid, userId, role, content, timestamp);
   }
 
   /**
    * 取得格式化後的歷史紀錄 Prompt
    * 讀取該使用者最近 N 筆對話
+   * 優先使用 summary（若存在），否則使用完整 content
    */
   getHistoryContext(userId: string): string {
     // 1. 取出最近的 MAX_HISTORY 筆 (依照時間倒序取，這樣才能拿到最新的)
     const stmt = this.db.prepare(`
-      SELECT role, content 
+      SELECT role, content, summary 
       FROM messages 
       WHERE user_id = ? 
       ORDER BY timestamp DESC 
       LIMIT ?
     `);
 
-    const rows = stmt.all(userId, this.MAX_HISTORY) as { role: string, content: string }[];
+    const rows = stmt.all(userId, this.MAX_HISTORY) as { role: string, content: string, summary: string | null }[];
 
     if (rows.length === 0) {
       return '';
@@ -97,11 +117,39 @@ export class MemoryManager {
     // 2. 因為是倒序取出的 (最新 -> 最舊)，要反轉回 (最舊 -> 最新) 才能符合閱讀順序
     rows.reverse();
 
-    // 3. 格式化為 Prompt
+    // 3. 格式化為 Prompt (優先使用 summary)
     return rows.map(msg => {
       const roleName = msg.role === 'user' ? 'User' : 'AI';
-      return `${roleName}: ${msg.content}`;
+      const displayText = msg.summary || msg.content;
+      const prefix = msg.summary ? '[Summary]' : '';
+      return `${roleName}${prefix}: ${displayText}`;
     }).join('\n');
+  }
+
+  /**
+   * 使用 FTS5 全文檢索搜尋對話
+   */
+  search(userId: string, query: string, limit: number = 10): ChatMessage[] {
+    const stmt = this.db.prepare(`
+      SELECT m.role, m.content, m.timestamp
+      FROM messages_fts f
+      INNER JOIN messages m ON f.rowid = m.id
+      WHERE f.user_id = ? AND f.content MATCH ?
+      ORDER BY m.timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(userId, query, limit) as Array<{
+      role: string;
+      content: string;
+      timestamp: number;
+    }>;
+
+    return rows.map(row => ({
+      role: row.role as 'user' | 'model',
+      content: row.content,
+      timestamp: row.timestamp
+    }));
   }
 
   /**
@@ -110,6 +158,10 @@ export class MemoryManager {
   clear(userId: string): void {
     const stmt = this.db.prepare('DELETE FROM messages WHERE user_id = ?');
     stmt.run(userId);
+
+    // 同步清除 FTS5
+    const ftsStmt = this.db.prepare('DELETE FROM messages_fts WHERE user_id = ?');
+    ftsStmt.run(userId);
   }
 
   /**

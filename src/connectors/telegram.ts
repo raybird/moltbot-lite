@@ -156,7 +156,7 @@ export class TelegramConnector implements Connector {
       // 2. Send remaining chunks as new messages
       if (chunks.length > 1) {
         for (let i = 1; i < chunks.length; i++) {
-          await this.bot.telegram.sendMessage(chatId, chunks[i]);
+          await this.bot.telegram.sendMessage(chatId, chunks[i]!);
         }
       }
     } catch (error) {
