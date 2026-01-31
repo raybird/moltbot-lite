@@ -1,8 +1,8 @@
-# 🤖 Moltbot Lite
+# 🤖 TeleGem
 
 > **您的私人本地 AI 助理閘道器**
 >
-> 這是基於 `moltbot` 核心精神實作的精簡版 AI 助理。它將您的 Telegram 帳號直接連接到本地電腦的 `gemini-cli` 大腦，具備完整的工具執行權限與持久化記憶。
+> 這是基於 `telegem` 核心精神實作的本地 AI 助理。它將您的 Telegram 帳號直接連接到本地電腦的 `gemini-cli` 大腦，具備完整的工具執行權限與持久化記憶。
 
 ---
 
@@ -40,7 +40,7 @@
 ### 2. 下載與安裝
 ```bash
 # 進入專案目錄
-cd moltbot-lite
+cd telegem
 
 # 安裝依賴
 npm install
@@ -117,7 +117,7 @@ docker compose up -d --build
 
 **首次使用 - 登入**：
 ```bash
-docker compose exec moltbot gemini
+docker compose exec telegem gemini
 ```
 登入資訊會保存到 volume，重建容器不會遺失。
 
@@ -130,7 +130,7 @@ docker compose restart
 ### 4. 常用指令
 ```bash
 # 查看日誌
-docker compose logs -f moltbot
+docker compose logs -f telegem
 
 # 停止容器
 docker compose down
@@ -139,12 +139,12 @@ docker compose down
 docker compose restart
 
 # 進入容器 shell
-docker compose exec moltbot bash
+docker compose exec telegem bash
 ```
 
 ### 5. 資料庫位置
-- 本機開發：`./data/moltbot.db`（透過 `DB_DIR` 設定）
-- 容器內：`/data/moltbot.db`（透過 volume 掛載 `./data`）
+- 本機開發：`./data/telegem.db`（透過 `DB_DIR` 設定）
+- 容器內：`/data/telegem.db`（透過 volume 掛載 `./data`）
 - 資料會保存在主機的 `./data` 目錄，重建容器不會遺失
 
 ### 6. 長期記憶與知識管理
@@ -209,7 +209,7 @@ docker compose restart
 
 ### 記憶系統運作方式
 
-Moltbot 採用**智慧混合式記憶架構**：
+TeleGem 採用**智慧混合式記憶架構**：
 
 1. **短期記憶 (最近 5 則)**：直接載入到 AI 的上下文中
    - 短訊息：顯示完整內容

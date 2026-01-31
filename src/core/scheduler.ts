@@ -122,7 +122,7 @@ export class Scheduler {
 
             // 3. 組合 Prompt
             const fullPrompt = `
-System: 你是 Moltbot，一個具備強大工具執行能力的本地 AI 助理。
+System: 你是 TeleGem，一個具備強大工具執行能力的本地 AI 助理。
 這是一個排程任務觸發的自動執行。
 請用繁體中文回應。
 
@@ -268,7 +268,7 @@ AI Response:
 
             // 組合反思 Prompt
             const reflectionPrompt = `
-System: 你是 Moltbot，正在執行「對話反思」任務。
+System: 你是 TeleGem，正在執行「對話反思」任務。
 請用繁體中文回應。
 
 ${longTermMemory ? longTermMemory + '\n\n' : ''}【任務說明】
@@ -331,7 +331,7 @@ ${historyText}
 
         try {
             const summaryPrompt = `
-System: 你是 Moltbot，正在執行「每日對話摘要」任務。
+System: 你是 TeleGem，正在執行「每日對話摘要」任務。
 請用繁體中文回應。
 
 【任務說明】
