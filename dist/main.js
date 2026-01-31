@@ -37,6 +37,8 @@ async function bootstrap() {
     telegram.onMessage(async (msg) => {
         console.log(`📩 [${msg.sender.platform}] ${msg.sender.name}: ${msg.content}`);
         const userId = msg.sender.id;
+        // 重置沉默計時器 (30 分鐘無訊息後觸發反思)
+        scheduler.resetSilenceTimer(userId);
         const commandHandled = await commandRouter.handleMessage(msg, {
             connector: telegram,
             memory,

@@ -56,5 +56,17 @@ export declare class MemoryManager {
      * 切換排程的啟用狀態
      */
     toggleSchedule(id: number, isActive: boolean): void;
+    /**
+     * 取得指定時間範圍內的對話歷史 (供反思系統使用)
+     * @param userId 使用者 ID
+     * @param hours 往前查詢的小時數
+     */
+    getExtendedHistory(userId: string, hours?: number): ChatMessage[];
+    /**
+     * 取得使用者最後一則訊息的時間戳
+     * @param userId 使用者 ID
+     * @returns 時間戳 (ms)，若無訊息則返回 0
+     */
+    getLastMessageTime(userId: string): number;
 }
 //# sourceMappingURL=memory.d.ts.map

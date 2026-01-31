@@ -9,6 +9,9 @@ const execAsync = promisify(exec);
 
 export class Scheduler {
     private jobs: Map<number, Cron> = new Map();
+    private systemJobs: Map<string, Cron> = new Map();
+    private silenceTimers: Map<string, NodeJS.Timeout> = new Map();
+    private readonly SILENCE_TIMEOUT_MS = 30 * 60 * 1000; // 30 分鐘
     private memory: MemoryManager;
     private gemini: GeminiAgent;
     private connector: Connector;
@@ -29,6 +32,22 @@ export class Scheduler {
         for (const schedule of schedules) {
             this.startJob(schedule);
         }
+
+        // 初始化系統排程
+        await this.initSystemSchedules();
+    }
+
+    /**
+     * 初始化系統預設排程 (如每日摘要)
+     */
+    private async initSystemSchedules(): Promise<void> {
+        // 每日 09:00 發送「每日對話摘要」
+        const dailySummaryJob = new Cron('0 9 * * *', async () => {
+            console.log('[Scheduler] Triggering daily summary...');
+            await this.executeDailySummary();
+        });
+        this.systemJobs.set('daily_summary', dailySummaryJob);
+        console.log('[Scheduler] Registered system job: daily_summary (09:00 daily)');
     }
 
     /**
@@ -187,5 +206,158 @@ AI Response:
             console.log(`[Scheduler] Stopped job #${id}`);
         }
         this.jobs.clear();
+
+        // 停止系統排程
+        for (const [name, job] of this.systemJobs.entries()) {
+            job.stop();
+            console.log(`[Scheduler] Stopped system job: ${name}`);
+        }
+        this.systemJobs.clear();
+
+        // 清除沉默計時器
+        for (const timer of this.silenceTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.silenceTimers.clear();
+    }
+
+    /**
+     * 重置使用者的沉默計時器 (每次收到訊息時呼叫)
+     */
+    resetSilenceTimer(userId: string): void {
+        // 清除現有計時器
+        if (this.silenceTimers.has(userId)) {
+            clearTimeout(this.silenceTimers.get(userId)!);
+        }
+
+        // 設定新的計時器
+        const timer = setTimeout(async () => {
+            console.log(`[Scheduler] Silence detected for user ${userId}, triggering reflection...`);
+            await this.triggerReflection(userId, 'silence');
+        }, this.SILENCE_TIMEOUT_MS);
+
+        this.silenceTimers.set(userId, timer);
+    }
+
+    /**
+     * 觸發反思任務
+     * @param userId 使用者 ID
+     * @param type 觸發類型
+     * @param messageIdToEdit 如果提供，結果將會編輯此訊息而不是發送新訊息
+     */
+    async triggerReflection(userId: string, type: 'silence' | 'manual' = 'silence', messageIdToEdit?: string): Promise<void> {
+        console.log(`[Scheduler] Triggering reflection (type: ${type}) for user ${userId}`);
+
+        try {
+            // 取得過去 24 小時的對話歷史
+            const extendedHistory = this.memory.getExtendedHistory(userId, 24);
+            if (extendedHistory.length === 0) {
+                console.log('[Scheduler] No recent conversations, skipping reflection.');
+                return;
+            }
+
+            // 格式化歷史
+            const historyText = extendedHistory.map(msg => {
+                const role = msg.role === 'user' ? 'User' : 'AI';
+                const time = new Date(msg.timestamp).toLocaleString('zh-TW');
+                return `[${time}] ${role}: ${msg.content.substring(0, 500)}${msg.content.length > 500 ? '...' : ''}`;
+            }).join('\n\n');
+
+            // 檢索長期記憶
+            const longTermMemory = await this.retrieveLongTermMemory('對話回顧 反思 待辦');
+
+            // 組合反思 Prompt
+            const reflectionPrompt = `
+System: 你是 Moltbot，正在執行「對話反思」任務。
+請用繁體中文回應。
+
+${longTermMemory ? longTermMemory + '\n\n' : ''}【任務說明】
+請分析過去 24 小時的對話歷史，找出：
+1. 🔴 未解決的問題：用戶提出但沒有明確解決的疑問
+2. 🟡 可優化事項：討論過但可以做得更好的地方
+3. 🟢 待辦提醒：用戶提到想做但可能忘記的事
+
+【工具使用】
+- 使用 search_entities 查詢現有的 reflection 實體
+- 對於新發現，使用 create_entities 建立 type=reflection 的實體
+- 對於已存在的事項，使用 add_observation 更新 (reminder_count +1)
+
+【過去 24 小時對話】
+${historyText}
+
+【輸出格式】
+請簡潔彙整你的發現，並說明你建立或更新了哪些 reflection 實體。
+如果沒有需要提醒的事項，請簡短說明「近期對話無待處理事項」。
+`.trim();
+
+            const response = await this.gemini.chat(reflectionPrompt);
+
+            // 只有在有內容時才發送
+            if (response && !response.includes('無待處理事項')) {
+                const header = type === 'silence'
+                    ? '💭 [對話沉默反思]\n\n'
+                    : '🔍 [手動反思]\n\n';
+
+                if (messageIdToEdit) {
+                    await this.connector.editMessage(userId, messageIdToEdit, header + response);
+                } else {
+                    await this.connector.sendMessage(userId, header + response);
+                }
+            } else {
+                console.log('[Scheduler] Reflection completed, no action needed.');
+                // 如果是手動觸發且沒有待辦事項，也告知使用者
+                if (type === 'manual' && messageIdToEdit) {
+                    await this.connector.editMessage(userId, messageIdToEdit, '✨ 近期對話無待處理事項！');
+                }
+            }
+
+        } catch (error) {
+            console.error('[Scheduler] Error during reflection:', error);
+        }
+    }
+
+    /**
+     * 執行每日摘要
+     */
+    private async executeDailySummary(): Promise<void> {
+        // 取得所有有對話記錄的使用者 (這裡簡化為使用 ALLOWED_USER_ID)
+        const userId = process.env.ALLOWED_USER_ID;
+        if (!userId) {
+            console.log('[Scheduler] No ALLOWED_USER_ID set, skipping daily summary.');
+            return;
+        }
+
+        console.log(`[Scheduler] Generating daily summary for user ${userId}`);
+
+        try {
+            const summaryPrompt = `
+System: 你是 Moltbot，正在執行「每日對話摘要」任務。
+請用繁體中文回應。
+
+【任務說明】
+1. 使用 search_entities 查詢所有 type=reflection 的實體
+2. 彙整成一份簡潔的日報
+
+【輸出格式】
+📅 每日摘要 - ${new Date().toLocaleDateString('zh-TW')}
+
+🔴 高優先待處理：
+- ...
+
+🟡 可優化事項：
+- ...
+
+🟢 已解決/低優先：
+- ...
+
+如果沒有任何 reflection，請回覆「✨ 目前沒有待處理事項！」
+`.trim();
+
+            const response = await this.gemini.chat(summaryPrompt);
+            await this.connector.sendMessage(userId, '📅 [每日摘要]\n\n' + response);
+
+        } catch (error) {
+            console.error('[Scheduler] Error generating daily summary:', error);
+        }
     }
 }

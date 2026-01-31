@@ -190,5 +190,41 @@ export class MemoryManager {
         const stmt = this.db.prepare('UPDATE schedules SET is_active = ? WHERE id = ?');
         stmt.run(isActive ? 1 : 0, id);
     }
+    /**
+     * 取得指定時間範圍內的對話歷史 (供反思系統使用)
+     * @param userId 使用者 ID
+     * @param hours 往前查詢的小時數
+     */
+    getExtendedHistory(userId, hours = 24) {
+        const cutoffTime = Date.now() - (hours * 60 * 60 * 1000);
+        const stmt = this.db.prepare(`
+      SELECT role, content, timestamp
+      FROM messages
+      WHERE user_id = ? AND timestamp >= ?
+      ORDER BY timestamp ASC
+    `);
+        const rows = stmt.all(userId, cutoffTime);
+        return rows.map(row => ({
+            role: row.role,
+            content: row.content,
+            timestamp: row.timestamp
+        }));
+    }
+    /**
+     * 取得使用者最後一則訊息的時間戳
+     * @param userId 使用者 ID
+     * @returns 時間戳 (ms)，若無訊息則返回 0
+     */
+    getLastMessageTime(userId) {
+        const stmt = this.db.prepare(`
+      SELECT timestamp
+      FROM messages
+      WHERE user_id = ?
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `);
+        const row = stmt.get(userId);
+        return row?.timestamp ?? 0;
+    }
 }
 //# sourceMappingURL=memory.js.map

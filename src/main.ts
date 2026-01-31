@@ -48,6 +48,9 @@ async function bootstrap() {
     console.log(`📩 [${msg.sender.platform}] ${msg.sender.name}: ${msg.content}`);
     const userId = msg.sender.id;
 
+    // 重置沉默計時器 (30 分鐘無訊息後觸發反思)
+    scheduler.resetSilenceTimer(userId);
+
     const commandHandled = await commandRouter.handleMessage(msg, {
       connector: telegram,
       memory,
@@ -60,7 +63,7 @@ async function bootstrap() {
     // UX: 先發送 "Thinking..." 佔位訊息，並啟動輪播
     let placeholderMsgId = '';
     let thinkingInterval: NodeJS.Timeout | null = null;
-    
+
     const thinkingMessages = [
       "🤔 思考中...",
       "🧠 正在理解問題...",
@@ -73,7 +76,7 @@ async function bootstrap() {
 
     try {
       placeholderMsgId = await telegram.sendPlaceholder(userId, thinkingMessages[0]!);
-      
+
       // 每 3 秒切換一次訊息
       if (placeholderMsgId) {
         thinkingInterval = setInterval(async () => {
