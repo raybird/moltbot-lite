@@ -186,3 +186,5 @@ AI Response:
 bootstrap().catch(err => {
   console.error('❌ Fatal Error:', err);
 });
+
+// Trigger restart to load new schedules

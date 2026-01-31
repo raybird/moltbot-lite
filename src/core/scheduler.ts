@@ -11,7 +11,7 @@ export class Scheduler {
     private jobs: Map<number, Cron> = new Map();
     private systemJobs: Map<string, Cron> = new Map();
     private silenceTimers: Map<string, NodeJS.Timeout> = new Map();
-    private readonly SILENCE_TIMEOUT_MS = 30 * 60 * 1000; // 30 分鐘
+    private readonly SILENCE_TIMEOUT_MS = 30 * 60 * 1000; // 正式環境：30 分鐘
     private memory: MemoryManager;
     private gemini: GeminiAgent;
     private connector: Connector;
@@ -231,6 +231,8 @@ AI Response:
             clearTimeout(this.silenceTimers.get(userId)!);
         }
 
+        console.log(`[Scheduler] Timer reset for user ${userId}. Next trigger in ${this.SILENCE_TIMEOUT_MS / 1000 / 60} minutes.`);
+
         // 設定新的計時器
         const timer = setTimeout(async () => {
             console.log(`[Scheduler] Silence detected for user ${userId}, triggering reflection...`);
@@ -239,6 +241,8 @@ AI Response:
 
         this.silenceTimers.set(userId, timer);
     }
+
+
 
     /**
      * 觸發追蹤提醒任務
@@ -306,7 +310,7 @@ ${historyText}
                 }
             } else {
                 console.log('[Scheduler] Follow-up completed, no action needed.');
-                const noTodoMsg = '✨ 一切順利，目前無待辦。';
+                const noTodoMsg = '✨ 無待辦。';
                 // 沉默模式也發送精簡通知
                 if (type === 'silence') {
                     await this.connector.sendMessage(userId, noTodoMsg);

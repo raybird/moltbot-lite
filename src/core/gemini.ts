@@ -51,7 +51,8 @@ export class GeminiAgent {
 
       console.log(`[Gemini] Executing (YOLO Mode): ${command.substring(0, 50)}...`);
 
-      const { stdout, stderr } = await execAsync(command);
+      // 設定 10 分鐘超時，避免無限等待
+      const { stdout, stderr } = await execAsync(command, { timeout: 600000 });
 
       if (stderr && stderr.trim().length > 0) {
         // 工具執行的過程通常會輸出很多 stderr 資訊，這裡我們記錄下來但不中斷流程
@@ -65,6 +66,9 @@ export class GeminiAgent {
 
     } catch (error: any) {
       console.error('[Gemini] Execution failed:', error);
+      if (error.code === 'ETIMEDOUT' || error.signal === 'SIGTERM') {
+        return '✨ 5分鐘內未完成';
+      }
       return `Error calling Gemini: ${error.message}\nStderr: ${error.stderr || ''}`;
     }
   }
