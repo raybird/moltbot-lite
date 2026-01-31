@@ -1,0 +1,16 @@
+services:
+  moltbot:
+    build: .
+    env_file: .env
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      ALLOWED_USER_ID: ${ALLOWED_USER_ID}
+      DB_PATH: /data/moltbot.db
+    volumes:
+      - ./data:/data
+      - ./.gemini:/app/.gemini
+      - gemini_auth:/root/.gemini
+    restart: unless-stopped
+
+volumes:
+  gemini_auth:

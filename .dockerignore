@@ -1,0 +1,37 @@
+# 敏感資訊
+.env
+data/
+.gemini/
+*.db
+
+# 依賴與建置產物（會重新生成）
+node_modules/
+dist/
+
+# 版本控制
+.git/
+.gitignore
+
+# 文件
+README.md
+ARCHITECTURE.md
+CONTRIBUTING.md
+*.md
+
+# 開發工具
+.eslintrc.cjs
+.prettierrc.json
+.prettierignore
+.vscode/
+.cursor/
+.serena/
+
+# 部署檔案
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# 日誌與暫存
+*.log
+npm-debug.log*
+.DS_Store

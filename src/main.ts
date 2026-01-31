@@ -57,10 +57,34 @@ async function bootstrap() {
       return;
     }
 
-    // UX: 先發送 "Thinking..." 佔位訊息
+    // UX: 先發送 "Thinking..." 佔位訊息，並啟動輪播
     let placeholderMsgId = '';
+    let thinkingInterval: NodeJS.Timeout | null = null;
+    
+    const thinkingMessages = [
+      "🤔 思考中...",
+      "🧠 正在理解問題...",
+      "🔍 搜尋相關資訊...",
+      "⚡ 處理中...",
+      "💭 組織回答...",
+      "🎯 分析脈絡..."
+    ];
+    let messageIndex = 0;
+
     try {
-      placeholderMsgId = await telegram.sendPlaceholder(userId, "🤔 Thinking...");
+      placeholderMsgId = await telegram.sendPlaceholder(userId, thinkingMessages[0]!);
+      
+      // 每 3 秒切換一次訊息
+      if (placeholderMsgId) {
+        thinkingInterval = setInterval(async () => {
+          messageIndex = (messageIndex + 1) % thinkingMessages.length;
+          try {
+            await telegram.editMessage(userId, placeholderMsgId, thinkingMessages[messageIndex]!);
+          } catch (e) {
+            console.warn("Failed to update thinking message", e);
+          }
+        }, 3000);
+      }
     } catch (e) {
       console.warn("Failed to send placeholder", e);
     }
@@ -92,6 +116,13 @@ System: 你是 Moltbot，一個具備強大工具執行能力的本地 AI 助理
 node dist/tools/search_memory.js "關鍵字"
 這會從資料庫搜尋相關的歷史對話並顯示給你。
 
+【知識管理 - 重要】
+你有 MCP Memory 工具可以儲存長期知識與關係：
+- 當對話包含重要資訊（如：使用者偏好、專案細節、重要決策）時，請主動使用 create_entities 儲存
+- 當發現實體間的關係時，使用 create_relations 建立連結
+- 需要回想相關知識時，使用 search_entities 搜尋
+- 在對話結束前，如果有值得記住的內容，請務必儲存到 Memory
+
 Conversation History:
 ${historyContext}
 
@@ -116,7 +147,11 @@ AI Response:
         memory.addMessage(userId, 'model', response, responseSummary);
       }
 
-      // 6. 更新訊息 (取代 Thinking...)
+      // 6. 停止輪播並更新訊息 (取代 Thinking...)
+      if (thinkingInterval) {
+        clearInterval(thinkingInterval);
+      }
+
       if (placeholderMsgId) {
         await telegram.editMessage(userId, placeholderMsgId, response);
       } else {
@@ -127,6 +162,11 @@ AI Response:
     } catch (error) {
       console.error('❌ Error processing message:', error);
       const errorMsg = "Sorry, I encountered an error while exercising my powers.";
+
+      // 停止輪播
+      if (thinkingInterval) {
+        clearInterval(thinkingInterval);
+      }
 
       if (placeholderMsgId) {
         await telegram.editMessage(userId, placeholderMsgId, errorMsg);

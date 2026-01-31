@@ -5,3 +5,8 @@ moltbot.db**
 .serena/
 
 .env
+
+# Gemini CLI - 只保留設定檔，忽略認證與快取
+.gemini/auth/
+.gemini/cache/
+.gemini/.credentials

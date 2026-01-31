@@ -96,6 +96,96 @@ npm run format
 
 ---
 
+## 🐳 Docker 使用方式
+
+### 1. 設定環境變數
+建立 `.env`（或使用現有 `.env`），確保包含：
+```env
+TELEGRAM_TOKEN=你的_BOT_TOKEN
+ALLOWED_USER_ID=你的_TELEGRAM_ID
+DB_DIR=./data
+```
+
+### 2. 啟動容器
+```bash
+docker compose up -d --build
+```
+
+### 3. Gemini CLI 設定
+專案使用獨立的 gemini-cli 設定：
+- **專案設定**：`./.gemini/settings.json`（含 MCP servers 設定）
+- **認證資訊**：由 Docker volume 管理（`gemini_auth`）
+
+**首次使用 - 登入**：
+```bash
+docker compose exec moltbot gemini
+```
+登入資訊會保存到 volume，重建容器不會遺失。
+
+**調整 MCP 設定**：
+編輯 `./.gemini/settings.json` 後重啟容器：
+```bash
+docker compose restart
+```
+
+### 4. 常用指令
+```bash
+# 查看日誌
+docker compose logs -f moltbot
+
+# 停止容器
+docker compose down
+
+# 重啟容器
+docker compose restart
+
+# 進入容器 shell
+docker compose exec moltbot bash
+```
+
+### 5. 資料庫位置
+- 本機開發：`./data/moltbot.db`（透過 `DB_DIR` 設定）
+- 容器內：`/data/moltbot.db`（透過 volume 掛載 `./data`）
+- 資料會保存在主機的 `./data` 目錄，重建容器不會遺失
+
+### 6. 長期記憶與知識管理
+
+**MCP Memory Server**：
+- 專案已整合 `mcp-memory-libsql`，提供向量搜尋與知識圖譜功能
+- AI 會自動判斷重要資訊並儲存到 `/data/memory.db`
+- 支援實體（entities）、關係（relations）與語義搜尋
+
+**自動記憶機制**：
+- System prompt 已引導 AI 主動使用 MCP memory
+- `AfterAgent` hook 會在對話結束後提醒儲存
+- 可透過編輯 `.gemini/hooks/auto-memory.sh` 自訂儲存邏輯
+
+**手動管理**：
+```bash
+# 查看已儲存的記憶（需在對話中詢問 AI）
+"請列出我的記憶實體"
+
+# 搜尋相關知識
+"搜尋關於專案架構的記憶"
+```
+
+### 7. 擴充 Skills 與其他 MCP Servers（選用）
+
+**MCP Servers 設定**：
+- 編輯 `./.gemini/settings.json` 中的 `mcpServers` 區塊
+- 容器已預裝 `uv`/`uvx`，支援 Python MCP servers
+
+**安裝 Skills**：
+```bash
+# 進容器安裝
+docker compose exec moltbot npx skill-linker --from https://github.com/...
+
+# 重啟生效
+docker compose restart
+```
+
+---
+
 ## 💡 使用說明
 
 直接在 Telegram 視窗中與您的 Bot 對話即可。

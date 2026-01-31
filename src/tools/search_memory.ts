@@ -25,7 +25,7 @@ function main() {
     }
 
     // 連接資料庫 (唯讀模式)
-    const dbPath = path.resolve(process.cwd(), 'moltbot.db');
+    const dbPath = resolveDbPath();
     const db = new Database(dbPath, { readonly: true });
 
     try {
@@ -66,6 +66,20 @@ function main() {
     } finally {
         db.close();
     }
+}
+
+function resolveDbPath(): string {
+    const explicitPath = process.env.DB_PATH?.trim();
+    if (explicitPath) {
+        return path.resolve(explicitPath);
+    }
+
+    const dbDir = process.env.DB_DIR?.trim();
+    if (dbDir) {
+        return path.resolve(dbDir, 'moltbot.db');
+    }
+
+    return path.resolve(process.cwd(), 'moltbot.db');
 }
 
 main();
