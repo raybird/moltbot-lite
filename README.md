@@ -156,8 +156,8 @@ docker compose exec telegem bash
 
 **自動記憶機制**：
 - System prompt 已引導 AI 主動使用 MCP memory
-- `AfterAgent` hook 會在對話結束後提醒儲存
-- 可透過編輯 `.gemini/hooks/auto-memory.sh` 自訂儲存邏輯
+- `BeforeAgent` hook 會在每次對話前自動檢索相關記憶並注入 Prompt
+- 透過 `.gemini/hooks/retrieve-memory.sh` 實現語義搜尋與記憶增強
 
 **手動管理**：
 ```bash
@@ -177,7 +177,7 @@ docker compose exec telegem bash
 **安裝 Skills**：
 ```bash
 # 進容器安裝
-docker compose exec moltbot npx skill-linker --from https://github.com/...
+docker compose exec telegem npx skill-linker --from https://github.com/...
 
 # 重啟生效
 docker compose restart
