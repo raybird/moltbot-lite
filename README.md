@@ -43,8 +43,7 @@
 cd moltbot-lite
 
 # 安裝依賴
-pnpm install
-# 或使用 npm install
+npm install
 ```
 
 ### 3. 環境變數配置

@@ -20,6 +20,9 @@ RUN npm install
 COPY .gemini ./.gemini
 RUN chmod +x .gemini/hooks/*.sh 2>/dev/null || true
 
+# 預先安裝 mcp-memory-libsql 以避免執行時下載問題
+RUN npm install -g mcp-memory-libsql
+
 COPY src ./src
 COPY tsconfig.json ./
 
