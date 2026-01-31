@@ -258,7 +258,7 @@ export class MemoryManager {
   }
 
   /**
-   * 取得指定時間範圍內的對話歷史 (供反思系統使用)
+   * 取得指定時間範圍內的對話歷史 (供追蹤系統使用)
    * @param userId 使用者 ID
    * @param hours 往前查詢的小時數
    */

@@ -169,14 +169,14 @@ export class CommandRouter {
       execute: async ({ userId, connector, scheduler }) => {
         const msgId = await connector.sendPlaceholder(userId, '🔍 分析中...');
         try {
-          // 手動觸發反思，並傳入 msgId 以便編輯回應
+          // 手動觸發追蹤，並傳入 msgId 以便編輯回應
           await scheduler.triggerReflection(userId, 'manual', msgId);
         } catch (error) {
           console.error('Reflection error:', error);
           if (msgId) {
-            await connector.editMessage(userId, msgId, '❌ 反思分析失敗，請檢查系統日誌。');
+            await connector.editMessage(userId, msgId, '❌ 追蹤分析失敗，請檢查系統日誌。');
           } else {
-            await connector.sendMessage(userId, '❌ 反思分析失敗，請檢查系統日誌。');
+            await connector.sendMessage(userId, '❌ 追蹤分析失敗，請檢查系統日誌。');
           }
         }
       }

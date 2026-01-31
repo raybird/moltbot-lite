@@ -81,7 +81,8 @@ export class Scheduler {
      */
     private async retrieveLongTermMemory(prompt: string): Promise<string> {
         try {
-            const hookPath = `${process.env.GEMINI_PROJECT_DIR}/.gemini/hooks/retrieve-memory.sh`;
+            const projectDir = process.env.GEMINI_PROJECT_DIR || process.cwd();
+            const hookPath = `${projectDir}/.gemini/hooks/retrieve-memory.sh`;
             const input = JSON.stringify({ prompt });
 
             console.log(`[Scheduler] Retrieving long-term memory for prompt...`);
@@ -240,7 +241,7 @@ AI Response:
     }
 
     /**
-     * 觸發反思任務
+     * 觸發追蹤提醒任務
      * @param userId 使用者 ID
      * @param type 觸發類型
      * @param messageIdToEdit 如果提供，結果將會編輯此訊息而不是發送新訊息
@@ -264,11 +265,11 @@ AI Response:
             }).join('\n\n');
 
             // 檢索長期記憶
-            const longTermMemory = await this.retrieveLongTermMemory('對話回顧 反思 待辦');
+            const longTermMemory = await this.retrieveLongTermMemory('對話回顧 追蹤 待辦');
 
-            // 組合反思 Prompt
+            // 組合追蹤提醒 Prompt
             const reflectionPrompt = `
-System: 你是 TeleGem，正在執行「對話反思」任務。
+System: 你是 TeleGem，正在執行「追蹤提醒」任務。
 請用繁體中文回應。
 
 ${longTermMemory ? longTermMemory + '\n\n' : ''}【任務說明】
@@ -295,8 +296,8 @@ ${historyText}
             // 只有在有內容時才發送
             if (response && !response.includes('無待處理事項')) {
                 const header = type === 'silence'
-                    ? '💭 [對話沉默反思]\n\n'
-                    : '🔍 [手動反思]\n\n';
+                    ? '🔔 [追蹤提醒]\n\n'
+                    : '🔍 [手動追蹤]\n\n';
 
                 if (messageIdToEdit) {
                     await this.connector.editMessage(userId, messageIdToEdit, header + response);
@@ -304,15 +305,28 @@ ${historyText}
                     await this.connector.sendMessage(userId, header + response);
                 }
             } else {
-                console.log('[Scheduler] Reflection completed, no action needed.');
-                // 如果是手動觸發且沒有待辦事項，也告知使用者
-                if (type === 'manual' && messageIdToEdit) {
-                    await this.connector.editMessage(userId, messageIdToEdit, '✨ 近期對話無待處理事項！');
+                console.log('[Scheduler] Follow-up completed, no action needed.');
+                const noTodoMsg = '✨ 一切順利，目前無待辦。';
+                // 沉默模式也發送精簡通知
+                if (type === 'silence') {
+                    await this.connector.sendMessage(userId, noTodoMsg);
+                } else if (type === 'manual' && messageIdToEdit) {
+                    await this.connector.editMessage(userId, messageIdToEdit, noTodoMsg);
                 }
             }
 
         } catch (error) {
             console.error('[Scheduler] Error during reflection:', error);
+        }
+
+        // 如果是沉默觸發，執行完成後再次設定計時器（每 30 分鐘循環）
+        if (type === 'silence') {
+            console.log(`[Scheduler] Re-scheduling follow-up for user ${userId} in 30 minutes...`);
+            const timer = setTimeout(async () => {
+                console.log(`[Scheduler] Recurring follow-up triggered for user ${userId}`);
+                await this.triggerReflection(userId, 'silence');
+            }, this.SILENCE_TIMEOUT_MS);
+            this.silenceTimers.set(userId, timer);
         }
     }
 
