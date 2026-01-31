@@ -51,6 +51,43 @@ export class CommandRouter {
 
   private registerDefaultCommands(): void {
     this.registerCommand({
+      name: 'start',
+      match: (content) => content === '/start',
+      execute: async ({ userId, connector }) => {
+        const helpMessage = `
+🤖 **歡迎使用 Moltbot Lite!**
+
+我是您的 AI 助理，隨時準備協助您。
+
+🛠 **基本指令**
+- \`/reset\`: 清除 AI 短期記憶 (Context Window)
+- \`/start\`: 顯示此說明訊息
+
+📅 **排程管理功能**
+目前的系統內建了強大的排程系統，您可以設定定時任務讓 AI 主動執行。
+
+**1. 新增排程**
+格式：\`/add_schedule 名稱 | Cron表達式 | 提示詞\`
+範例：
+\`\`\`
+/add_schedule 早安問候 | 0 9 * * * | 跟我說早安並報告天氣
+\`\`\`
+
+**2. 查看排程**
+指令：\`/list_schedules\`
+
+**3. 刪除排程**
+指令：\`/remove_schedule [ID]\`
+範例：\`/remove_schedule 1\`
+
+若有任何問題，直接跟我說即可！
+`.trim();
+        await connector.sendMessage(userId, helpMessage);
+      }
+    });
+
+
+    this.registerCommand({
       name: 'reset',
       match: (content) => content === '/reset',
       execute: async ({ userId, connector, memory }) => {
