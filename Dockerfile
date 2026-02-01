@@ -21,6 +21,9 @@ ENV PATH="/root/.local/bin:$PATH"
 # Install gemini-cli globally
 RUN npm install -g @google/gemini-cli
 
+# Install opencode CLI globally (for multi-provider support)
+RUN npm install -g @opencodehq/opencode
+
 COPY package.json package-lock.json ./
 RUN npm install
 

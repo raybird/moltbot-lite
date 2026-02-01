@@ -1,0 +1,8 @@
+# AI Provider Configuration
+# Options: gemini, opencode
+provider: gemini
+
+# Optional: Specify model
+# Examples:
+#   model: gemini-2.0-flash-exp
+#   model: google/gemini-2.0-flash

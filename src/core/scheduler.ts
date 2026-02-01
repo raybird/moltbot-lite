@@ -1,6 +1,6 @@
 import { Cron } from 'croner';
 import { MemoryManager, type Schedule } from './memory.js';
-import { GeminiAgent } from './gemini.js';
+import type { AIAgent } from './agent.js';
 import type { Connector } from '../types/index.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -13,10 +13,10 @@ export class Scheduler {
     private silenceTimers: Map<string, NodeJS.Timeout> = new Map();
     private readonly SILENCE_TIMEOUT_MS = 30 * 60 * 1000; // 正式環境：30 分鐘
     private memory: MemoryManager;
-    private gemini: GeminiAgent;
+    private gemini: AIAgent; // 改用 AIAgent 介面
     private connector: Connector;
 
-    constructor(memory: MemoryManager, gemini: GeminiAgent, connector: Connector) {
+    constructor(memory: MemoryManager, gemini: AIAgent, connector: Connector) {
         this.memory = memory;
         this.gemini = gemini;
         this.connector = connector;

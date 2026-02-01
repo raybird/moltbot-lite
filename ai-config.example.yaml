@@ -1,0 +1,14 @@
+# AI Provider Configuration Example
+# Copy this file to ai-config.yaml and customize
+
+# Provider options: gemini, opencode
+provider: gemini
+
+# Optional: Specify model
+# Examples for gemini:
+#   model: gemini-2.0-flash-exp
+#   model: gemini-1.5-pro
+#
+# Examples for opencode:
+#   model: google/gemini-2.0-flash
+#   model: anthropic/claude-3-5-sonnet

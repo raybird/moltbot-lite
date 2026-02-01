@@ -8,7 +8,8 @@
 
 ## ✨ 核心特色
 
-*   **🧠 強大腦力**: 直接串接系統 `gemini-cli`，支援最新的 Gemini 模型。
+*   **🧠 強大腦力**: 支援 `gemini-cli` 與 `opencode run` 雙提供者。
+*   **🔄 動態切換**: 透過 `ai-config.yaml` 實現熱切換 (Hot Swap)，不必重啟服務。
 *   **🛠️ YOLO 模式**: 開啟 Agent 行動能力，可直接進行 **網路搜尋**、**讀取本地檔案** 與 **執行系統指令**。
 *   **💾 智慧記憶系統**: 
     *   **混合式上下文**: 自動摘要長訊息，保持 Prompt 輕量（最近 5 則對話）
@@ -25,7 +26,7 @@
 
 - **Runtime**: Node.js 22+ (TypeScript)
 - **Framework**: Telegraf (Telegram Bot API)
-- **AI Backend**: `gemini-cli` (System Call)
+- **AI Backend**: 支援 `gemini-cli` 與 `opencode run` (可動態切換)
 - **Database**: Better-SQLite3
 - **Execution**: tsx / esbuild
 
@@ -53,6 +54,16 @@ TELEGRAM_TOKEN=你的_BOT_TOKEN
 ALLOWED_USER_ID=你的_TELEGRAM_ID
 ```
 *(提示：您可以透過 [@userinfobot](https://t.me/userinfobot) 取得您的 Telegram ID)*
+
+### 4. AI 提供者設定 (v2.1+)
+v2.1 起支援多提供者，請編輯 `ai-config.yaml`（若不存在請根據 `ai-config.example.yaml` 建立）：
+```yaml
+# ai-config.yaml
+provider: gemini  # 選項：gemini, opencode
+model: gemini-2.0-flash-exp  # 可選，指定模型名稱
+```
+> [!TIP]
+> 此設定檔支援**動態重載**，您可以在服務運行時隨時修改 Provider，下次對話將自動生效。
 
 ---
 
@@ -234,7 +245,9 @@ TeleGem 採用**智慧混合式記憶架構**：
 ```text
 src/
 ├── core/
-│   ├── gemini.ts      # 封裝 CLI 調用邏輯 (YOLO 模式 + 摘要 + 清洗)
+│   ├── agent.ts       # AIAgent 介面與動態代理人 (DynamicAIAgent)
+│   ├── gemini.ts      # Gemini CLI 實作
+│   ├── opencode.ts    # Opencode CLI 實作
 │   ├── memory.ts      # SQLite 記憶管理 (FTS5 全文檢索)
 │   └── scheduler.ts   # Cron 排程管理
 ├── connectors/
@@ -244,6 +257,21 @@ src/
 ├── types/             # 共用型別定義
 └── main.ts            # 程式入口點
 ```
+
+---
+
+## 📜 變更日誌
+
+### v2.1.0
+- **新增**: 整合 `opencode run` 作為替代 AI 提供者。
+- **新增**: 動態設定檔 `ai-config.yaml`，支援熱切換 Provider。
+- **新增**: 支援在設定檔中指定特定模型。
+- **優化**: 採用 stdin (echo pipe) 提升 CLI 執行速度。
+- **優化**: 改善日誌顯示，區分 System、DynamicAgent 與 AI 回應內容。
+- **改進**: 統一 `AIAgent` 介面，強化排程與追蹤系統的抽象化。
+
+### v2.0.0
+- 專案初始化，支援 Gemini CLI、SQLite 混合記憶與排程系統。
 
 ---
 

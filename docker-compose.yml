@@ -11,6 +11,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./workspace/.gemini:/app/workspace/.gemini
+      - ./ai-config.yaml:/app/ai-config.yaml
       - gemini_auth:/root/.gemini
     restart: unless-stopped
 

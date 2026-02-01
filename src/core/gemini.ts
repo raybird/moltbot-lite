@@ -1,9 +1,10 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import type { AIAgent, AIAgentOptions } from './agent.js';
 
 const execAsync = promisify(exec);
 
-export class GeminiAgent {
+export class GeminiAgent implements AIAgent {
   /**
    * 清除輸出中的 <thinking> 區塊和其他雜訊
    */
@@ -22,7 +23,7 @@ export class GeminiAgent {
    * 生成結構化摘要
    * 格式固定為 Goal/Decision/Todo/Facts 欄位
    */
-  async summarize(text: string): Promise<string> {
+  async summarize(text: string, options?: AIAgentOptions): Promise<string> {
     try {
       const prompt = `請將以下內容整理成結構化摘要，使用以下格式（省略空白欄位）：
 
@@ -37,7 +38,12 @@ ${text}
 只輸出摘要，不要加任何說明。`;
 
       const safePrompt = JSON.stringify(prompt);
-      const command = `gemini -p ${safePrompt}`;
+      let command = `gemini -p ${safePrompt}`;
+
+      // 若有指定 model，加入參數
+      if (options?.model) {
+        command += ` --model ${JSON.stringify(options.model)}`;
+      }
 
       const { stdout } = await execAsync(command);
       const cleaned = this.cleanOutput(stdout);
@@ -58,17 +64,24 @@ ${text}
   /**
    * 呼叫系統的 gemini-cli 處理訊息
    * @param prompt 使用者的輸入
+   * @param options 選項，可指定 model
    * @returns Gemini 的回應文字
    */
-  async chat(prompt: string): Promise<string> {
+  async chat(prompt: string, options?: AIAgentOptions): Promise<string> {
     try {
       const safePrompt = JSON.stringify(prompt);
 
       // 開啟 --yolo 模式，允許自動執行所有工具 (搜尋、讀取檔案、執行指令等)
       // 使用 -p 進入非互動模式
-      const command = `gemini --yolo -p ${safePrompt}`;
+      let command = `gemini --yolo -p ${safePrompt}`;
 
-      console.log(`[Gemini] Executing (YOLO Mode): ${command.substring(0, 50)}...`);
+      // 若有指定 model，加入參數
+      if (options?.model) {
+        command += ` --model ${JSON.stringify(options.model)}`;
+        console.log(`[Gemini] Executing (YOLO Mode) with model: ${options.model}`);
+      } else {
+        console.log(`[Gemini] Executing (YOLO Mode): ${command.substring(0, 50)}...`);
+      }
 
       // 設定 10 分鐘超時，並在 workspace/ 目錄執行，避免意外修改源碼
       const { stdout, stderr } = await execAsync(command, {

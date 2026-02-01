@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { TelegramConnector } from './connectors/telegram.js';
 import { CommandRouter } from './core/command-router.js';
-import { GeminiAgent } from './core/gemini.js';
+import { DynamicAIAgent } from './core/agent.js';
 import { MemoryManager } from './core/memory.js';
 import { Scheduler } from './core/scheduler.js';
 import type { UnifiedMessage } from './types/index.js';
@@ -39,7 +39,7 @@ async function bootstrap() {
 
   // 初始化元件
   const telegram = new TelegramConnector(TELEGRAM_TOKEN, [ALLOWED_USER_ID]);
-  const gemini = new GeminiAgent();
+  const gemini = new DynamicAIAgent(); // 使用動態代理人，支援切換 provider
   const memory = new MemoryManager();
   const scheduler = new Scheduler(memory, gemini, telegram);
   const commandRouter = new CommandRouter();
@@ -153,10 +153,12 @@ ${historyContext}
 AI Response:
 `.trim();
 
-      // 4. 呼叫 Gemini CLI
+      console.log(`📤 [System] Sending prompt to AI (length: ${fullPrompt.length} chars)`);
+
+      // 4. 呼叫 AI Agent (DynamicAgent 會根據 ai-config.yaml 選擇 provider)
       const response = await gemini.chat(fullPrompt);
 
-      console.log(`🤖 [Gemini] Reply length: ${response.length}`);
+      console.log(`📥 [AI] Reply length: ${response.length}`);
 
       // 5. 存入 AI 回應 (依條件自動摘要)
       if (response && !response.startsWith('Error')) {
